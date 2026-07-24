@@ -8,6 +8,10 @@
 ## 🎨 Visão Geral & Tecnologias
 O **FlexDesk** é uma solução full-stack moderna para reserva em tempo real de estações de trabalho (*hot-desking*), cabines privadas e salas de reunião, prevenção de no-show (W.O.) e análise de ocupação.
 
+- **🌐 Deploy em Produção:** [https://flexdesk-esof.vercel.app/](https://flexdesk-esof.vercel.app/)
+- **📹 Vídeo Demonstrativo:** [https://youtu.be/SbNxR5TZ7YM](https://youtu.be/SbNxR5TZ7YM)
+- **💻 Repositório GitHub:** [https://github.com/vitorterras/flexdesk](https://github.com/vitorterras/flexdesk)
+
 - **Frontend:** React 18 + Vite + TypeScript + TailwindCSS (Liquid Glass Dark Mode) + Lucide Icons
 - **Backend:** FastAPI (Python) + PyTest (13 testes automatizados de integração)
 - **Banco de Dados:** Supabase Relational PostgreSQL (Tabelas: `perfil`, `usuario`, `localizacao`, `recurso`, `reserva`)
