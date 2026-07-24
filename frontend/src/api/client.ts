@@ -230,24 +230,40 @@ export async function checkinReservationApi(reservationId: number, _userId: numb
 export async function fetchMetricsApi(): Promise<DashboardMetrics> {
   const { count: totalRecursos } = await supabase.from('recurso').select('*', { count: 'exact', head: true });
   const { count: totalReservas } = await supabase.from('reserva').select('*', { count: 'exact', head: true });
-  const { count: totalEmUso } = await supabase.from('reserva').select('*', { count: 'exact', head: true });
-  const { count: totalWO } = await supabase.from('reserva').select('*', { count: 'exact', head: true });
-
-  const taxaWO = totalReservas && totalReservas > 0 ? Math.round(((totalWO || 0) / totalReservas) * 100) : 0;
+  
+  const { data: reservas } = await supabase.from('reserva').select('*, recurso(localizacao_id)');
+  const emUsoList = (reservas || []).filter(r => (r.status === 'Confirmada' || r.status_reserva === 'Confirmada'));
+  const woList = (reservas || []).filter(r => (r.status === 'WO' || r.status_reserva === 'WO'));
+  
+  const totalEmUso = emUsoList.length;
+  const totalWO = woList.length;
+  const taxaWO = totalReservas && totalReservas > 0 ? Math.round((totalWO / totalReservas) * 100) : 0;
 
   const { data: locs } = await supabase.from('localizacao').select('id, nome');
-  const detalhes = (locs || []).map((loc: any) => ({
-    Localização: loc.nome,
-    'Total Recursos': 3,
-    'Total Reservas': 2,
-    'Taxa de Ocupação Est. (%)': 65,
-  }));
+  const { data: allResources } = await supabase.from('recurso').select('id, localizacao_id');
+
+  const detalhes = (locs || []).map((loc: any) => {
+    const recursosDoSetor = (allResources || []).filter(r => r.localizacao_id === loc.id);
+    const recursosIds = recursosDoSetor.map(r => r.id);
+    const reservasDoSetor = (reservas || []).filter(res => recursosIds.includes(res.recurso_id));
+    
+    const countRec = recursosDoSetor.length;
+    const countRes = reservasDoSetor.length;
+    const taxa = countRec > 0 ? Math.min(100, Math.round((countRes / countRec) * 100)) : 0;
+
+    return {
+      Localização: loc.nome,
+      'Total Recursos': countRec,
+      'Total Reservas': countRes,
+      'Taxa de Ocupação Est. (%)': taxa,
+    };
+  });
 
   return {
-    total_recursos: totalRecursos || 7,
-    total_reservas: totalReservas || 0,
-    total_em_uso: totalEmUso || 0,
-    total_wo: totalWO || 0,
+    total_recursos: totalRecursos || allResources?.length || 7,
+    total_reservas: totalReservas || reservas?.length || 0,
+    total_em_uso: totalEmUso,
+    total_wo: totalWO,
     taxa_wo: taxaWO,
     detalhes_localizacao: detalhes,
   };
