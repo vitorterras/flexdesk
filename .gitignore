@@ -16,6 +16,12 @@ ENV/
 .env.*.local
 *.env
 
+# Context Files & Delivery Docs (PDFs, Root HTMLs, Screenshots)
+*.pdf
+/*.html
+Captura de Tela*
+WhatsApp Image*
+
 # Node / React
 node_modules/
 frontend/node_modules/
