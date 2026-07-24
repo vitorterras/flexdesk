@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { User, Location, Resource, Reservation, DashboardMetrics } from '../types';
 
-// Validação de domínios corporativos permitidos (Regra de Negócio US001)
 const DOMINIOS_PERMITIDOS = ['@ufu.br', '@empresa.com.br'];
 
 export async function loginApi(email: string, _senha: string): Promise<{ user: User }> {
@@ -11,7 +10,6 @@ export async function loginApi(email: string, _senha: string): Promise<{ user: U
     throw new Error('E-mail corporativo inválido. Utilize um e-mail @ufu.br ou @empresa.com.br.');
   }
 
-  // Buscar usuário na tabela public.usuario do Supabase
   const { data: users, error } = await supabase
     .from('usuario')
     .select('*, perfil(nome)')
@@ -44,7 +42,6 @@ export async function registerApi(nome: string, email: string, senha: string, pe
     throw new Error('Cadastro permitido apenas para e-mails corporativos (@ufu.br ou @empresa.com.br).');
   }
 
-  // Verificar se o e-mail já existe no Supabase
   const { data: existing } = await supabase
     .from('usuario')
     .select('id')
@@ -102,10 +99,11 @@ export async function fetchResourcesApi(locationId?: number): Promise<Resource[]
     .filter('data_hora_fim', 'gte', now);
 
   return (resources || []).map((r: any) => {
-    const resAtual = (reservas || []).find((res: any) => res.recurso_id === r.id && res.status !== 'Cancelada');
+    const resAtual = (reservas || []).find((res: any) => res.recurso_id === r.id && (res.status || res.status_reserva) !== 'Cancelada');
     let statusCalculado = 'LIVRE';
     if (resAtual) {
-      statusCalculado = resAtual.status === 'Confirmada' ? 'EM_USO' : 'RESERVADO';
+      const st = resAtual.status || resAtual.status_reserva;
+      statusCalculado = st === 'Confirmada' ? 'EM_USO' : 'RESERVADO';
     }
     return {
       id: r.id,
@@ -121,7 +119,7 @@ export async function fetchResourcesApi(locationId?: number): Promise<Resource[]
             usuario_id: resAtual.usuario_id,
             inicio: resAtual.data_hora_inicio,
             fim: resAtual.data_hora_fim,
-            status_reserva: resAtual.status,
+            status_reserva: resAtual.status || resAtual.status_reserva,
           }
         : null,
     };
@@ -151,8 +149,7 @@ export async function deleteResourceApi(id: number) {
   const { data: reservas } = await supabase
     .from('reserva')
     .select('id')
-    .eq('recurso_id', id)
-    .in('status', ['Pendente', 'Confirmada']);
+    .eq('recurso_id', id);
 
   if (reservas && reservas.length > 0) {
     throw new Error('Não é possível remover recurso com reservas ativas.');
@@ -180,8 +177,8 @@ export async function fetchUserReservationsApi(userId: number): Promise<Reservat
     localizacao_nome: r.recurso?.localizacao?.nome || 'Setor A',
     inicio: r.data_hora_inicio,
     fim: r.data_hora_fim,
-    status: r.status,
-    checkin: r.data_hora_checkin,
+    status: r.status || r.status_reserva || 'Pendente',
+    checkin: r.data_hora_checkin || r.data_checkin,
   }));
 }
 
@@ -190,7 +187,6 @@ export async function createReservationApi(usuario_id: number, recurso_id: numbe
     .from('reserva')
     .select('id')
     .eq('recurso_id', recurso_id)
-    .in('status', ['Pendente', 'Confirmada'])
     .lt('data_hora_inicio', fim)
     .gt('data_hora_fim', inicio);
 
@@ -200,7 +196,14 @@ export async function createReservationApi(usuario_id: number, recurso_id: numbe
 
   const { data, error } = await supabase
     .from('reserva')
-    .insert([{ usuario_id, recurso_id, data_hora_inicio: inicio, data_hora_fim: fim, status: 'Pendente' }])
+    .insert([{ 
+      usuario_id, 
+      recurso_id, 
+      data_hora_inicio: inicio, 
+      data_hora_fim: fim, 
+      status: 'Pendente',
+      status_reserva: 'Pendente'
+    }])
     .select();
 
   if (error) throw new Error(error.message || 'Falha ao realizar reserva.');
@@ -211,7 +214,12 @@ export async function checkinReservationApi(reservationId: number, _userId: numb
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('reserva')
-    .update({ status: 'Confirmada', data_hora_checkin: now })
+    .update({ 
+      status: 'Confirmada', 
+      status_reserva: 'Confirmada',
+      data_hora_checkin: now,
+      data_checkin: now
+    })
     .eq('id', reservationId)
     .select();
 
@@ -222,8 +230,8 @@ export async function checkinReservationApi(reservationId: number, _userId: numb
 export async function fetchMetricsApi(): Promise<DashboardMetrics> {
   const { count: totalRecursos } = await supabase.from('recurso').select('*', { count: 'exact', head: true });
   const { count: totalReservas } = await supabase.from('reserva').select('*', { count: 'exact', head: true });
-  const { count: totalEmUso } = await supabase.from('reserva').select('*', { count: 'exact', head: true }).eq('status', 'Confirmada');
-  const { count: totalWO } = await supabase.from('reserva').select('*', { count: 'exact', head: true }).eq('status', 'WO');
+  const { count: totalEmUso } = await supabase.from('reserva').select('*', { count: 'exact', head: true });
+  const { count: totalWO } = await supabase.from('reserva').select('*', { count: 'exact', head: true });
 
   const taxaWO = totalReservas && totalReservas > 0 ? Math.round(((totalWO || 0) / totalReservas) * 100) : 0;
 
@@ -254,6 +262,6 @@ export async function fetchExportDataApi() {
     "Recurso": r.recurso?.codigo_identificacao,
     "Início": r.data_hora_inicio,
     "Fim": r.data_hora_fim,
-    "Status": r.status
+    "Status": r.status || r.status_reserva
   }));
 }
