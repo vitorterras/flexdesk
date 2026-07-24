@@ -8,17 +8,40 @@ import { Dashboard } from './pages/Dashboard';
 import type { User } from './types';
 
 export function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('map');
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('flexdesk_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return localStorage.getItem('flexdesk_tab') || 'map';
+  });
+
   const [selectedResourceIdForBooking, setSelectedResourceIdForBooking] = useState<number | null>(null);
 
+  const handleLoginSuccess = (u: User) => {
+    setUser(u);
+    localStorage.setItem('flexdesk_user', JSON.stringify(u));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('flexdesk_user');
+    localStorage.removeItem('flexdesk_tab');
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    localStorage.setItem('flexdesk_tab', tab);
+  };
+
   if (!user) {
-    return <Login onLoginSuccess={(u) => setUser(u)} />;
+    return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
   const handleSelectResourceForBooking = (resourceId: number) => {
     setSelectedResourceIdForBooking(resourceId);
-    setActiveTab('reservations');
+    handleTabChange('reservations');
   };
 
   return (
@@ -27,8 +50,8 @@ export function App() {
       <Sidebar
         user={user}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onLogout={() => setUser(null)}
+        setActiveTab={handleTabChange}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
