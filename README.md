@@ -1,7 +1,7 @@
 # 🏢 FlexDesk - Sistema de Gestão de Coworking e Espaços Híbridos
 > **Trabalho Prático da Disciplina de Engenharia de Software 2 (ES2)**  
 > **Universidade Federal de Uberlândia (UFU)** — Prof. Dr. Fabiano Azevedo Dorça  
-> **Autor:** Vitor Terra (`vitorterras`)
+> **Autores:** Artur Mariano, Bryan Silva, Caio Silva, Iury Gregório e Vitor Terra
 
 ---
 
